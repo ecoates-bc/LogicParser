@@ -34,6 +34,7 @@ class Expression:
         self.op = op
         self.post = post
 
+    # Create text version of expression recursively
     def tostring(self):
         if self.pre is not None:
             pre_value = self.pre.tostring()
@@ -46,6 +47,7 @@ class Expression:
 
         return "(" + pre_value + " " + self.op.value + " " + post_value + ")"
 
+    # Evaluate statement recursively
     def evaluate(self):
         if self.pre is not None:
             pre_value = self.pre.evaluate()
@@ -56,6 +58,7 @@ class Expression:
         else:
             post_value = None
 
+        # Return boolean function based on type of operation
         if self.op == Op.Neg:
             res = lambda a, b: not b
         elif self.op == Op.IncOr:
@@ -70,6 +73,7 @@ class Expression:
         return res(pre_value, post_value)
 
 
+# Each type of connective
 class Op(enum.Enum):
     Neg   = "~"
     IncOr = "V"
@@ -90,6 +94,7 @@ class TruthTable:
         self.entities = []
         self.find_entities(self.expression)
 
+    # Recursively find unique instances of Entity objects in the statement
     def find_entities(self, expression):
         if type(expression.pre) is Entity:
             if not self.in_entities(expression.pre):
@@ -103,21 +108,28 @@ class TruthTable:
         elif type(expression.post) is Expression:
             self.find_entities(expression.post)
 
+    # return true iff entity is already in self.entities
     def in_entities(self, entity):
         for e in self.entities:
             if e.name == entity.name:
                 return True
         return False
 
+    # return a string of each entity name in self.entities
     def print_entities(self):
         entities = ""
         for e in self.entities:
             entities += e.name + " "
         return entities
 
+    # Create and print truth table from statement
     def construct_table(self):
+        # header row
         topRow = self.print_entities() + " | " + self.expression.tostring()
         print(topRow)
+        # there are 2^n rows where n is number of entities
+        # for each entity, negate truth value using mods and powers of 2
+        #     until every true/false combination is evaluated
         mod_counter = len(self.entities)
         for i in range(0, 2**mod_counter):
             for j in range(0, mod_counter):
@@ -142,6 +154,7 @@ class TruthTable:
 #         print(obj.name, obj.entity.name)
 
 
+# return true iff open bracket count equals close bracket count
 def verify_formedness(str):
     open_count = 0
     close_count = 0
@@ -154,11 +167,15 @@ def verify_formedness(str):
     return open_count == close_count
 
 
+# Recursively break up string into structure of statement using arrays
 def parse_expression(str):
     parts = ["", "", ""]
     index = 0
     num_open = 0
     num_close = 0
+    # Add characters to pre-subexpression until number of open parens equals number of close parens
+    # Then parse connective to Op
+    # Then add characters to post-subexpression and recursively parse both subexpressions
     for i in range(0, len(str)):
         c = str[i]
         if c is "(":
@@ -184,6 +201,7 @@ def parse_expression(str):
             parts[index] += c
 
     for i in range(0, 3):
+        # parse whole subexpression if negated, otherwise ignore top-level parentheses
         if len(parts[i]) > 2:
             if parts[i][0] is "(":
                 elem = parse_expression(parts[i][1:-1])
@@ -194,9 +212,11 @@ def parse_expression(str):
     return parts
 
 
+# Take arrays from parse_expression() and construct Expression objects from them
 def parse_expression_object(arr):
     parts = ["", "", ""]
     for i in range(0, 3):
+        # Create negated entity, entity, connective, or expression from each item in array
         if type(arr[i]) is str:
             if "~" in arr[i] and len(arr[i]) > 1:
                 exp = Expression(None, Op.Neg, Entity(arr[i][-1], False))
@@ -213,11 +233,13 @@ def parse_expression_object(arr):
     return Expression(parts[0], parts[1], parts[2])
 
 
+# Make sure there is only one argument when calling LogicParser.py
 if len(sys.argv[1:]) != 1:
     print("Error: unexpected number of arguments")
 else:
     statement = sys.argv[1].replace(" ", "")
     if verify_formedness(statement):
+        # Parse input expression and create truth table
         parts = parse_expression(statement)
         exp = parse_expression_object(parts)
         table = TruthTable(exp)
